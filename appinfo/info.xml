@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+    <id>opentalk</id>
+    <name>OpenTalk</name>
+    <summary>OpenTalk video conferencing integration for Nextcloud</summary>
+    <description><![CDATA[📹 OpenTalk Integration for Nextcloud
+
+Integrate OpenTalk video conferencing with your Nextcloud instance.
+
+- 📹 Start video meetings directly from Nextcloud
+- 👥 Invite users to conferences
+- 🔄 Seamless integration with Nextcloud
+- 🆓 Free and open source under EUPL
+
+**Requirements:**
+- OpenTalk server instance
+- Nextcloud 28 or higher
+    ]]></description>
+    <version>0.1.0</version>
+    <licence>agpl</licence>
+    <author mail="info@conduction.nl" homepage="https://www.conduction.nl/">Conduction</author>
+    <namespace>OpenTalk</namespace>
+    <category>multimedia</category>
+    <category>social</category>
+    <website>https://github.com/ConductionNL/OpenTalk</website>
+    <bugs>https://github.com/ConductionNL/OpenTalk/issues</bugs>
+    <repository>https://github.com/ConductionNL/OpenTalk</repository>
+
+    <screenshot>https://raw.githubusercontent.com/ConductionNL/opentalk/main/img/screenshot.png</screenshot>
+
+    <documentation>
+        <user>https://docs.opentalk.eu/</user>
+        <admin>https://docs.opentalk.eu/</admin>
+    </documentation>
+
+    <dependencies>
+        <php min-version="8.0" min-int-size="64"/>
+        <database min-version="10">pgsql</database>
+        <database>sqlite</database>
+        <database min-version="8.0">mysql</database>
+        <nextcloud min-version="28" max-version="33"/>
+    </dependencies>
+
+    <navigations>
+        <navigation>
+            <id>opentalk</id>
+            <name>OpenTalk</name>
+            <route>opentalk.page.index</route>
+            <icon>app.svg</icon>
+            <type>link</type>
+        </navigation>
+    </navigations>
+</info>

@@ -1,0 +1,37 @@
+/.idea/
+/*.iml
+*.Identifier
+.phphunit.result.cache
+
+/vendor/
+/vendor-bin/*/vendor/
+
+/.php-cs-fixer.cache
+/tests/.phpunit.cache
+
+/node_modules/
+/js/
+/custom_apps/
+/config/
+
+/coverage/
+/coverage-frontend/
+
+# Quality reports
+/quality-reports/
+quality-baseline.json
+/phpmetrics/
+
+# PHPCS/Psalm output files
+phpcs-*.json
+phpcs-*.txt
+psalm-errors.json
+psalm-output.json
+phpqa_output.log
+
+# Data files
+*.csv
+*.xls
+*.xlsx
+
+phpqa/
