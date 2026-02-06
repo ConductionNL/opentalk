@@ -17,7 +17,7 @@ Integrate OpenTalk video conferencing with your Nextcloud instance.
 - OpenTalk server instance
 - Nextcloud 28 or higher
     ]]></description>
-    <version>0.1.0</version>
+    <version>0.1.1-beta.1</version>
     <licence>agpl</licence>
     <author mail="info@conduction.nl" homepage="https://www.conduction.nl/">Conduction</author>
     <namespace>OpenTalk</namespace>
