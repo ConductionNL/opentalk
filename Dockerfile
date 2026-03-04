@@ -9,22 +9,22 @@
 #
 # See: https://docs.opentalk.eu/
 
-FROM python:3.11-slim AS builder
+# Stage 1: Build Python dependencies
+FROM python:3.11-slim AS python-builder
 
-# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
+    gcc \
+    libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies for ExApp wrapper
-WORKDIR /app
+WORKDIR /build
 COPY requirements.txt .
-RUN pip install --no-cache-dir --target=/app/deps -r requirements.txt
+RUN pip install --no-cache-dir --prefix=/python-packages -r requirements.txt
 
-# Get OpenTalk controller from upstream image
+# Stage 2: Get OpenTalk controller from upstream image
 FROM registry.opencode.de/opentalk/controller:v0.31.0-3 AS opentalk-base
 
-# Production image
+# Stage 3: Production image
 FROM python:3.11-slim
 
 # Install runtime dependencies
@@ -38,21 +38,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy OpenTalk controller binary from upstream
 COPY --from=opentalk-base /controller/opentalk-controller /usr/local/bin/opentalk-controller
 
-# Copy Python dependencies
-COPY --from=builder /app/deps /usr/local/lib/python3.11/site-packages
+# Copy Python dependencies from builder
+COPY --from=python-builder /python-packages/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
+COPY --from=python-builder /python-packages/bin/ /usr/local/bin/
 
 # Set up ExApp wrapper
 WORKDIR /app
-COPY ex_app /app/ex_app
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY ex_app/ ex_app/
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
 
 # Create config and data directories
 RUN mkdir -p /etc/opentalk /var/lib/opentalk
 
 # Environment variables (set by AppAPI)
+ENV APP_ID=opentalk
 ENV APP_HOST=0.0.0.0
-ENV APP_PORT=9000
+ENV APP_PORT=23000
 ENV PYTHONUNBUFFERED=1
 
 # OpenTalk configuration
@@ -73,11 +75,11 @@ ENV OPENTALK_CTRL_LIVEKIT__SERVICE_URL=http://localhost:7880
 ENV OPENTALK_CTRL_LIVEKIT__API_KEY=devkey
 ENV OPENTALK_CTRL_LIVEKIT__API_SECRET=secret
 
-# Expose ports: 9000 for AppAPI, 11311 for OpenTalk controller
-EXPOSE 9000 11311
+# Expose ports: 23000 for AppAPI, 11311 for OpenTalk controller
+EXPOSE 23000 11311
 
-# Health check - just verify the wrapper is responding (any status is ok during init)
+# Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-    CMD curl -s http://localhost:${APP_PORT:-9000}/heartbeat | grep -q status || exit 1
+    CMD curl -s http://localhost:${APP_PORT:-23000}/heartbeat | grep -q status || exit 1
 
-ENTRYPOINT ["/usr/bin/tini", "--", "/entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/tini", "--", "./entrypoint.sh"]

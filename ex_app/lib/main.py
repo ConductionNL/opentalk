@@ -1,29 +1,43 @@
-"""
-OpenTalk ExApp - FastAPI wrapper for Nextcloud AppAPI integration
+"""OpenTalk ExApp - Nextcloud External Application wrapper for OpenTalk video conferencing.
 
 OpenTalk is a secure video conferencing solution.
 See: https://docs.opentalk.eu/
 """
+
+import asyncio
+import logging
 import os
 import subprocess
-import asyncio
-import base64
+import threading
+import typing
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI, Request, BackgroundTasks
+from fastapi import BackgroundTasks, Depends, FastAPI, Request
 from fastapi.responses import JSONResponse, Response
+from nc_py_api import NextcloudApp
+from nc_py_api.ex_app import (
+    nc_app,
+    run_app,
+    setup_nextcloud_logging,
+)
+from nc_py_api.ex_app.integration_fastapi import AppAPIAuthMiddleware
 
-# Environment variables set by AppAPI
+
+# -- Logging -----------------------------------------------------------------
+logging.basicConfig(
+    level=logging.WARNING,
+    format="[%(funcName)s]: %(message)s",
+    datefmt="%H:%M:%S",
+)
+LOGGER = logging.getLogger("opentalk")
+LOGGER.setLevel(logging.DEBUG)
+
+
+# -- Configuration -----------------------------------------------------------
 APP_ID = os.environ.get("APP_ID", "opentalk")
-APP_VERSION = os.environ.get("APP_VERSION", "0.1.0")
-APP_SECRET = os.environ.get("APP_SECRET", "")
-APP_HOST = os.environ.get("APP_HOST", "0.0.0.0")
-APP_PORT = int(os.environ.get("APP_PORT", "9000"))
-NEXTCLOUD_URL = os.environ.get("NEXTCLOUD_URL", "http://nextcloud")
-
-# OpenTalk configuration - controller runs on port 11311 by default
 OPENTALK_PORT = int(os.environ.get("OPENTALK_PORT", "11311"))
+OPENTALK_URL = f"http://localhost:{OPENTALK_PORT}"
 OPENTALK_PROCESS = None
 
 # Keycloak/OIDC configuration
@@ -33,38 +47,14 @@ KEYCLOAK_CLIENT_ID = os.environ.get("KEYCLOAK_CLIENT_ID", "opentalk")
 KEYCLOAK_CLIENT_SECRET = os.environ.get("KEYCLOAK_CLIENT_SECRET", "")
 
 
-def get_auth_header() -> dict:
-    """Generate AppAPI authentication header"""
-    auth = base64.b64encode(f":{APP_SECRET}".encode()).decode()
-    return {
-        "EX-APP-ID": APP_ID,
-        "EX-APP-VERSION": APP_VERSION,
-        "AUTHORIZATION-APP-API": auth,
-    }
-
-
-async def report_status(progress: int) -> None:
-    """Report initialization progress to Nextcloud"""
-    try:
-        async with httpx.AsyncClient() as client:
-            await client.put(
-                f"{NEXTCLOUD_URL}/ocs/v1.php/apps/app_api/apps/status",
-                headers=get_auth_header(),
-                json={"progress": progress},
-                timeout=10,
-            )
-    except Exception as e:
-        print(f"Failed to report status: {e}")
-
-
+# -- OpenTalk Process Management ---------------------------------------------
 def get_oidc_env() -> dict:
-    """Get OIDC environment variables for OpenTalk if Keycloak is configured"""
+    """Get OIDC environment variables for OpenTalk if Keycloak is configured."""
     if not KEYCLOAK_URL:
         return {}
 
     oidc_url = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}"
     return {
-        # OpenTalk OIDC settings (uses OPENTALK_CTRL__ prefix)
         "OPENTALK_CTRL_OIDC__AUTHORITY": oidc_url,
         "OPENTALK_CTRL_OIDC__CLIENT_ID": KEYCLOAK_CLIENT_ID,
         "OPENTALK_CTRL_OIDC__CLIENT_SECRET": KEYCLOAK_CLIENT_SECRET,
@@ -72,9 +62,10 @@ def get_oidc_env() -> dict:
 
 
 def start_opentalk() -> None:
-    """Start the OpenTalk controller service"""
+    """Start the OpenTalk controller subprocess."""
     global OPENTALK_PROCESS
-    if OPENTALK_PROCESS is not None:
+
+    if OPENTALK_PROCESS is not None and OPENTALK_PROCESS.poll() is None:
         return
 
     env = os.environ.copy()
@@ -82,20 +73,25 @@ def start_opentalk() -> None:
     # Add OIDC configuration if Keycloak is configured
     env.update(get_oidc_env())
     if KEYCLOAK_URL:
-        print(f"OIDC configured with Keycloak at {KEYCLOAK_URL}")
+        LOGGER.info("OIDC configured with Keycloak at %s", KEYCLOAK_URL)
 
-    # Start OpenTalk controller
     OPENTALK_PROCESS = subprocess.Popen(
         ["/usr/local/bin/opentalk-controller"],
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
-    print(f"OpenTalk controller started with PID: {OPENTALK_PROCESS.pid}")
+
+    def log_output():
+        for line in OPENTALK_PROCESS.stdout:
+            LOGGER.info("[opentalk] %s", line.decode().strip())
+
+    threading.Thread(target=log_output, daemon=True).start()
+    LOGGER.info("OpenTalk controller started with PID: %d", OPENTALK_PROCESS.pid)
 
 
 def stop_opentalk() -> None:
-    """Stop the OpenTalk controller service"""
+    """Stop the OpenTalk controller subprocess."""
     global OPENTALK_PROCESS
     if OPENTALK_PROCESS is not None:
         OPENTALK_PROCESS.terminate()
@@ -104,19 +100,19 @@ def stop_opentalk() -> None:
         except subprocess.TimeoutExpired:
             OPENTALK_PROCESS.kill()
         OPENTALK_PROCESS = None
-        print("OpenTalk controller stopped")
+        LOGGER.info("OpenTalk controller stopped")
 
 
 async def wait_for_opentalk(timeout: int = 90) -> bool:
-    """Wait for OpenTalk controller to become healthy"""
+    """Wait for OpenTalk controller to become healthy."""
     for _ in range(timeout):
         try:
             async with httpx.AsyncClient() as client:
-                # OpenTalk controller serves on /v1 endpoint
                 resp = await client.get(
-                    f"http://localhost:{OPENTALK_PORT}/v1/",
-                    timeout=2,
+                    f"{OPENTALK_URL}/v1/",
+                    timeout=5,
                 )
+                # Any of these statuses means the controller is running
                 if resp.status_code in (200, 401, 404):
                     return True
         except Exception:
@@ -125,105 +121,144 @@ async def wait_for_opentalk(timeout: int = 90) -> bool:
     return False
 
 
+# -- Lifespan ----------------------------------------------------------------
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan handler"""
-    print(f"OpenTalk ExApp starting on {APP_HOST}:{APP_PORT}")
+async def lifespan(_app: FastAPI):
+    """Application lifespan handler."""
+    setup_nextcloud_logging("opentalk", logging_level=logging.WARNING)
+    LOGGER.info("Starting OpenTalk ExApp")
+    start_opentalk()
     yield
     stop_opentalk()
-    print("OpenTalk ExApp shutdown complete")
+    LOGGER.info("OpenTalk ExApp shutdown complete")
 
 
-app = FastAPI(lifespan=lifespan)
+# -- FastAPI App -------------------------------------------------------------
+APP = FastAPI(lifespan=lifespan)
+APP.add_middleware(AppAPIAuthMiddleware)
 
 
-@app.get("/heartbeat")
-async def heartbeat():
-    """Health check endpoint for AppAPI"""
+# -- Enabled Handler ---------------------------------------------------------
+def enabled_handler(enabled: bool, nc: NextcloudApp) -> str:
+    """Handle app enable/disable events."""
+    if enabled:
+        LOGGER.info("Enabling OpenTalk ExApp")
+        start_opentalk()
+    else:
+        LOGGER.info("Disabling OpenTalk ExApp")
+        stop_opentalk()
+    return ""
+
+
+# -- Required Endpoints ------------------------------------------------------
+@APP.get("/heartbeat")
+async def heartbeat_callback():
+    """Heartbeat endpoint for AppAPI health checks."""
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(
-                f"http://localhost:{OPENTALK_PORT}/v1/",
+                f"{OPENTALK_URL}/v1/",
                 timeout=5,
             )
             if resp.status_code in (200, 401, 404):
-                return JSONResponse({"status": "ok"})
+                return JSONResponse(content={"status": "ok"})
     except Exception:
         pass
-    return JSONResponse({"status": "error"}, status_code=503)
+    return JSONResponse(content={"status": "error"}, status_code=503)
 
 
-@app.post("/init")
-async def init(background_tasks: BackgroundTasks):
-    """Initialization endpoint called by AppAPI during deployment"""
-    async def do_init():
-        await report_status(0)
-        print("Starting OpenTalk initialization...")
-
-        await report_status(20)
-        start_opentalk()
-
-        await report_status(50)
-        if await wait_for_opentalk():
-            await report_status(100)
-            print("OpenTalk initialization complete")
-        else:
-            print("OpenTalk failed to start - check configuration")
-            await report_status(0)
-
-    background_tasks.add_task(do_init)
-    return JSONResponse({"status": "init_started"})
+@APP.post("/init")
+async def init_callback(
+    b_tasks: BackgroundTasks,
+    nc: typing.Annotated[NextcloudApp, Depends(nc_app)],
+):
+    """Initialization endpoint called by AppAPI after installation."""
+    b_tasks.add_task(init_opentalk_task, nc)
+    return JSONResponse(content={})
 
 
-@app.put("/enabled")
-async def enabled(request: Request):
-    """Enable/disable endpoint called by AppAPI"""
-    data = await request.json()
-    is_enabled = data.get("enabled", False)
+@APP.put("/enabled")
+def enabled_callback(
+    enabled: bool,
+    nc: typing.Annotated[NextcloudApp, Depends(nc_app)],
+):
+    """Enable/disable callback from AppAPI."""
+    return JSONResponse(content={"error": enabled_handler(enabled, nc)})
 
-    if is_enabled:
-        start_opentalk()
-        await wait_for_opentalk(timeout=60)
+
+async def init_opentalk_task(nc: NextcloudApp):
+    """Background task for OpenTalk initialization with progress reporting."""
+    nc.set_init_status(0)
+    LOGGER.info("Starting OpenTalk initialization...")
+
+    start_opentalk()
+    nc.set_init_status(20)
+
+    nc.set_init_status(50)
+    if await wait_for_opentalk():
+        nc.set_init_status(100)
+        LOGGER.info("OpenTalk initialization complete")
     else:
-        stop_opentalk()
-
-    return JSONResponse({"status": "ok"})
+        LOGGER.error("OpenTalk failed to start within timeout")
 
 
-@app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+# -- Catch-All Proxy ---------------------------------------------------------
+@APP.api_route(
+    "/{path:path}",
+    methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+)
 async def proxy(request: Request, path: str):
-    """Proxy all other requests to OpenTalk controller"""
+    """Proxy all requests to OpenTalk controller."""
     try:
         async with httpx.AsyncClient() as client:
-            url = f"http://localhost:{OPENTALK_PORT}/{path}"
+            url = f"{OPENTALK_URL}/{path}"
+
+            headers = {
+                k: v
+                for k, v in request.headers.items()
+                if k.lower()
+                not in (
+                    "host",
+                    "connection",
+                    "transfer-encoding",
+                    "accept-encoding",
+                    "content-length",
+                )
+            }
 
             resp = await client.request(
                 method=request.method,
                 url=url,
                 content=await request.body(),
-                headers={
-                    k: v for k, v in request.headers.items()
-                    if k.lower() not in ("host", "content-length")
-                },
+                headers=headers,
                 params=request.query_params,
                 timeout=60,
             )
 
+            resp_headers = {
+                k: v
+                for k, v in resp.headers.items()
+                if k.lower()
+                not in (
+                    "content-encoding",
+                    "transfer-encoding",
+                    "content-length",
+                )
+            }
+
             return Response(
                 content=resp.content,
                 status_code=resp.status_code,
-                headers={
-                    k: v for k, v in resp.headers.items()
-                    if k.lower() not in ("content-encoding", "transfer-encoding")
-                },
+                headers=resp_headers,
             )
     except httpx.RequestError as e:
+        LOGGER.error("Proxy error: %s", str(e))
         return JSONResponse(
             {"error": f"Proxy error: {str(e)}"},
             status_code=502,
         )
 
 
+# -- Entry Point -------------------------------------------------------------
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host=APP_HOST, port=APP_PORT)
+    run_app(APP, log_level="info")

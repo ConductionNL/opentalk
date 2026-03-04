@@ -39,9 +39,9 @@ This is an ExApp (External Application) - Nextcloud will automatically manage th
 
     <external-app>
         <docker-install>
-            <registry>localhost:5000</registry>
-            <image>opentalk-exapp</image>
-            <image-tag>test</image-tag>
+            <registry>ghcr.io</registry>
+            <image>conductionnl/opentalk-exapp</image>
+            <image-tag>latest</image-tag>
         </docker-install>
 
         <routes>
