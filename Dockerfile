@@ -24,6 +24,9 @@ RUN pip install --no-cache-dir --target=/app/deps -r requirements.txt
 # Get OpenTalk controller from upstream image
 FROM registry.opencode.de/opentalk/controller:v0.31.0-3 AS opentalk-base
 
+# Get OpenTalk web frontend from upstream image
+FROM registry.opencode.de/opentalk/web-frontend:v2.6.2-1 AS frontend-base
+
 # Production image
 FROM python:3.11-slim
 
@@ -38,12 +41,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy OpenTalk controller binary from upstream
 COPY --from=opentalk-base /controller/opentalk-controller /usr/local/bin/opentalk-controller
 
+# Copy OpenTalk web frontend static files
+COPY --from=frontend-base /usr/share/nginx/html /app/frontend
+
 # Copy Python dependencies
 COPY --from=builder /app/deps /usr/local/lib/python3.11/site-packages
 
 # Set up ExApp wrapper
 WORKDIR /app
 COPY ex_app /app/ex_app
+COPY img/ /app/ex_app/img/
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
@@ -57,22 +64,9 @@ ENV APP_PORT=23000
 ENV PYTHONUNBUFFERED=1
 
 # OpenTalk configuration
+# All service config (oidc, livekit, database, redis) is in controller.toml
+# Env vars with OPENTALK_CTRL_ prefix override entire TOML sections, so avoid setting them here
 ENV OPENTALK_PORT=11311
-ENV OPENTALK_CTRL_HTTP__PORT=11311
-
-# Database configuration (required)
-ENV OPENTALK_CTRL_DATABASE__URL=postgres://opentalk:opentalk@localhost:5432/opentalk
-
-# Redis configuration (required)
-ENV OPENTALK_CTRL_REDIS__URL=redis://localhost:6379/
-
-# Keycloak/OIDC configuration (required)
-ENV OPENTALK_CTRL_OIDC__AUTHORITY=http://localhost:8081/realms/opentalk
-
-# LiveKit configuration (required for video)
-ENV OPENTALK_CTRL_LIVEKIT__SERVICE_URL=http://localhost:7880
-ENV OPENTALK_CTRL_LIVEKIT__API_KEY=devkey
-ENV OPENTALK_CTRL_LIVEKIT__API_SECRET=secret
 
 # Expose ports: 9000 for AppAPI, 11311 for OpenTalk controller
 EXPOSE 9000 11311
