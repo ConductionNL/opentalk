@@ -4,23 +4,22 @@
     <id>opentalk</id>
     <name>OpenTalk</name>
     <summary>OpenTalk video conferencing integration for Nextcloud</summary>
-    <description><![CDATA[📹 OpenTalk Integration for Nextcloud
+    <description><![CDATA[OpenTalk Integration for Nextcloud
 
 Integrate OpenTalk video conferencing with your Nextcloud instance.
 
-- 📹 Start video meetings directly from Nextcloud
-- 👥 Invite users to conferences
-- 🔄 Seamless integration with Nextcloud
-- 🆓 Free and open source under EUPL
+- Start video meetings directly from Nextcloud
+- Invite users to conferences
+- Seamless integration with Nextcloud
+- Free and open source
 
-**Requirements:**
-- OpenTalk server instance
-- Nextcloud 28 or higher
+This is an ExApp (External Application) - Nextcloud will automatically manage the OpenTalk container.
+
+**Note:** OpenTalk requires additional services (PostgreSQL, Redis, Keycloak, LiveKit) for full functionality.
     ]]></description>
-    <version>0.1.0</version>
+    <version>0.1.1-unstable.2</version>
     <licence>agpl</licence>
     <author mail="info@conduction.nl" homepage="https://www.conduction.nl/">Conduction</author>
-    <namespace>OpenTalk</namespace>
     <category>multimedia</category>
     <category>social</category>
     <website>https://github.com/ConductionNL/OpenTalk</website>
@@ -35,20 +34,71 @@ Integrate OpenTalk video conferencing with your Nextcloud instance.
     </documentation>
 
     <dependencies>
-        <php min-version="8.0" min-int-size="64"/>
-        <database min-version="10">pgsql</database>
-        <database>sqlite</database>
-        <database min-version="8.0">mysql</database>
-        <nextcloud min-version="28" max-version="33"/>
+        <nextcloud min-version="30" max-version="33"/>
     </dependencies>
 
-    <navigations>
-        <navigation>
-            <id>opentalk</id>
-            <name>OpenTalk</name>
-            <route>opentalk.page.index</route>
-            <icon>app.svg</icon>
-            <type>link</type>
-        </navigation>
-    </navigations>
+    <external-app>
+        <docker-install>
+            <registry>localhost:5000</registry>
+            <image>opentalk-exapp</image>
+            <image-tag>test</image-tag>
+        </docker-install>
+
+        <routes>
+            <route>
+                <url>.*</url>
+                <verb>GET,POST,PUT,DELETE,PATCH,OPTIONS</verb>
+                <access_level>USER</access_level>
+                <headers_to_exclude>[]</headers_to_exclude>
+            </route>
+        </routes>
+
+        <environment-variables>
+            <variable>
+                <name>OPENTALK_CTRL_DATABASE__URL</name>
+                <display-name>Database URL</display-name>
+                <description>PostgreSQL connection string (e.g., postgres://user:pass@host:5432/opentalk)</description>
+            </variable>
+            <variable>
+                <name>OPENTALK_CTRL_OIDC__AUTHORITY</name>
+                <display-name>OIDC Authority</display-name>
+                <description>Keycloak OIDC provider URL</description>
+            </variable>
+            <variable>
+                <name>OPENTALK_CTRL_LIVEKIT__SERVICE_URL</name>
+                <display-name>LiveKit URL</display-name>
+                <description>LiveKit WebRTC server URL</description>
+            </variable>
+            <variable>
+                <name>OPENTALK_CTRL_LIVEKIT__API_KEY</name>
+                <display-name>LiveKit API Key</display-name>
+                <description>LiveKit API key for authentication</description>
+            </variable>
+            <variable>
+                <name>OPENTALK_CTRL_LIVEKIT__API_SECRET</name>
+                <display-name>LiveKit API Secret</display-name>
+                <description>LiveKit API secret for authentication</description>
+            </variable>
+            <variable>
+                <name>KEYCLOAK_URL</name>
+                <display-name>Keycloak URL</display-name>
+                <description>Keycloak server URL for SSO (e.g., http://keycloak:8080)</description>
+            </variable>
+            <variable>
+                <name>KEYCLOAK_REALM</name>
+                <display-name>Keycloak Realm</display-name>
+                <description>Keycloak realm name (default: commonground)</description>
+            </variable>
+            <variable>
+                <name>KEYCLOAK_CLIENT_ID</name>
+                <display-name>Keycloak Client ID</display-name>
+                <description>OIDC client ID for this app (default: opentalk)</description>
+            </variable>
+            <variable>
+                <name>KEYCLOAK_CLIENT_SECRET</name>
+                <display-name>Keycloak Client Secret</display-name>
+                <description>OIDC client secret for this app</description>
+            </variable>
+        </environment-variables>
+    </external-app>
 </info>
