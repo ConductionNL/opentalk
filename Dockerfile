@@ -49,10 +49,11 @@ RUN chmod +x /entrypoint.sh
 
 # Create config and data directories
 RUN mkdir -p /etc/opentalk /var/lib/opentalk
+COPY controller.toml /etc/opentalk/controller.toml
 
 # Environment variables (set by AppAPI)
 ENV APP_HOST=0.0.0.0
-ENV APP_PORT=9000
+ENV APP_PORT=23000
 ENV PYTHONUNBUFFERED=1
 
 # OpenTalk configuration

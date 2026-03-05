@@ -1,0 +1,21 @@
+# Minimal OpenTalk controller configuration
+# Most settings are overridden by environment variables (OPENTALK_CTRL_*)
+
+[http]
+port = 11311
+bind_address = "0.0.0.0"
+
+[database]
+url = "postgres://nextcloud:!ChangeMe!@openregister-postgres:5432/opentalk"
+
+[redis]
+url = "redis://openregister-exapp-redis:6379/"
+
+[oidc]
+authority = "http://openregister-exapp-keycloak:8080/realms/commonground"
+client_id = "opentalk"
+
+[livekit]
+service_url = "http://openregister-exapp-livekit:7880"
+api_key = "devkey"
+api_secret = "secret"
