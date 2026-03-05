@@ -1,6 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
-# Start the FastAPI wrapper for AppAPI communication
-echo "Starting OpenTalk ExApp wrapper..."
-exec python3 -m uvicorn ex_app.lib.main:app --host "${APP_HOST:-0.0.0.0}" --port "${APP_PORT:-9000}"
+echo "Starting OpenTalk ExApp..."
+echo "APP_ID: ${APP_ID:-opentalk}"
+echo "APP_HOST: ${APP_HOST:-0.0.0.0}"
+echo "APP_PORT: ${APP_PORT:-23000}"
+exec python3 ex_app/lib/main.py
