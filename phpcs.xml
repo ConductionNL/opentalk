@@ -64,4 +64,5 @@
             </property>
         </properties>
     </rule>
+    <rule ref="./phpcs-custom-sniffs/CustomSniffs/Sniffs/Functions/NamedParametersSniff.php"/>
 </ruleset>
