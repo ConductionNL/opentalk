@@ -34,7 +34,7 @@ This is an ExApp (External Application) - Nextcloud will automatically manage th
     </documentation>
 
     <dependencies>
-        <nextcloud min-version="30" max-version="33"/>
+        <nextcloud min-version="30" max-version="34"/>
     </dependencies>
 
     <external-app>
