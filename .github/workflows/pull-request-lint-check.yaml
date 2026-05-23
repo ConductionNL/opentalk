@@ -1,0 +1,33 @@
+name: Lint Check
+
+on:
+  pull_request:
+    branches:
+      - development
+      - main
+
+jobs:
+  lint-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for package.json
+        id: has_pkg
+        run: |
+          if [ -f package.json ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No package.json found at repo root; lint-check is a no-op for this repo."
+          fi
+
+      - name: Install dependencies
+        if: steps.has_pkg.outputs.exists == 'true'
+        run: npm i
+
+      - name: Linting
+        if: steps.has_pkg.outputs.exists == 'true'
+        run: npm run lint
