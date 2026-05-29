@@ -22,11 +22,11 @@ This is an ExApp (External Application) - Nextcloud will automatically manage th
     <author mail="info@conduction.nl" homepage="https://www.conduction.nl/">Conduction</author>
     <category>multimedia</category>
     <category>social</category>
-    <website>https://github.com/ConductionNL/OpenTalk</website>
-    <bugs>https://github.com/ConductionNL/OpenTalk/issues</bugs>
-    <repository>https://github.com/ConductionNL/OpenTalk</repository>
+    <website>https://codeberg.org/Conduction/opentalk</website>
+    <bugs>https://codeberg.org/Conduction/opentalk/issues</bugs>
+    <repository>https://codeberg.org/Conduction/opentalk</repository>
 
-    <screenshot>https://raw.githubusercontent.com/ConductionNL/opentalk/main/img/screenshot.png</screenshot>
+    <screenshot>https://codeberg.org/Conduction/opentalk/raw/branch/main/img/screenshot.png</screenshot>
 
     <documentation>
         <user>https://docs.opentalk.eu/</user>

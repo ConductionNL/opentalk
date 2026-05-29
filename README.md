@@ -120,7 +120,7 @@ This ExApp uses a FastAPI wrapper that:
 |---------|-------------|-------|
 | **OpenTalk** | Video conferencing platform | [Website](https://opentalk.eu/) / [Docs](https://docs.opentalk.eu/) / [GitLab](https://gitlab.opencode.de/opentalk) |
 | **Nextcloud AppAPI** | External app framework | [GitHub](https://github.com/nextcloud/app_api) / [Docs](https://docs.nextcloud.com/server/latest/developer_manual/exapp_development/) |
-| **Open Register** | Nextcloud register management | [GitHub](https://github.com/ConductionNL/openregister) |
+| **Open Register** | Nextcloud register management | [Codeberg](https://codeberg.org/Conduction/openregister) |
 
 ## License
 
