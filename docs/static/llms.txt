@@ -1,0 +1,26 @@
+# {{APP_NAME}}
+
+> {{ONE_SENTENCE_DESCRIPTION}}
+
+{{APP_NAME}} is an open-source app for the Nextcloud workspace, built on the @conduction/docusaurus-preset documentation framework. Replace this placeholder content with a Wikipedia-style 2 to 4 sentence intro explaining what your app does, who uses it, and the key capabilities. End with the licence and maintainer line (most Conduction apps end "Released under EUPL-1.2 and maintained by {{ORG}} since {{YEAR}}.").
+
+## Docs
+
+- [Tutorials](https://{{slug}}.conduction.nl/tutorials): step-by-step walkthroughs for first-time users.
+- [Features](https://{{slug}}.conduction.nl/Features): what the app does, organised by capability.
+- [Use cases](https://{{slug}}.conduction.nl/UseCases): real customer scenarios the app solves.
+- [Integrations](https://{{slug}}.conduction.nl/Integrations): which external systems and standards the app talks to.
+- [Technical](https://{{slug}}.conduction.nl/Technical): architecture, data model, security posture, deployment notes.
+- [User guide](https://{{slug}}.conduction.nl/user-guide): end-user documentation.
+- [API](https://{{slug}}.conduction.nl/api): OpenAPI reference (when the app ships an HTTP API).
+
+## Optional
+
+- [Install](https://{{slug}}.conduction.nl/installation): how to install from the Nextcloud app store.
+- [Repository](https://github.com/{{ORG}}/{{slug}}): source code and issue tracker.
+- [App page on conduction.nl](https://www.conduction.nl/apps/{{slug}}): product positioning, pricing, support paths.
+
+## Contact
+
+- Email: info@conduction.nl
+- GitHub: https://github.com/{{ORG}}
