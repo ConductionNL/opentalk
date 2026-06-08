@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ConductionNL/opentalk/releases"><img src="https://img.shields.io/github/v/release/ConductionNL/opentalk" alt="Latest release"></a>
-  <a href="https://github.com/ConductionNL/opentalk/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-EUPL--1.2-blue" alt="License"></a>
+  <a href="https://codeberg.org/Conduction/opentalk/releases"><img src="https://img.shields.io/badge/release-Codeberg-blue" alt="Latest release"></a>
+  <a href="https://codeberg.org/Conduction/opentalk/src/branch/main/LICENSE"><img src="https://img.shields.io/badge/license-EUPL--1.2-blue" alt="License"></a>
 </p>
 
 ---
@@ -29,7 +29,7 @@
 >
 > **For OpenTalk support, licensing, pricing, and services, contact [OpenTalk GmbH](https://opentalk.eu/) directly.**
 >
-> For issues specific to the **Nextcloud wrapper** (AppAPI integration, container lifecycle, proxy layer), you may open an issue on [this repository](https://github.com/ConductionNL/opentalk/issues).
+> For issues specific to the **Nextcloud wrapper** (AppAPI integration, container lifecycle, proxy layer), you may open an issue on [this repository](https://codeberg.org/Conduction/opentalk/issues).
 
 ## What is OpenTalk?
 
