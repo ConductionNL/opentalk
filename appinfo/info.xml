@@ -4,7 +4,9 @@
     <id>opentalk</id>
     <name>OpenTalk</name>
     <summary>OpenTalk video conferencing integration for Nextcloud</summary>
-    <description><![CDATA[OpenTalk Integration for Nextcloud
+    <description><![CDATA[> ⚠️ **Active development — not for production use yet.** This app is under active development. Although it may carry a stable release status, **please do not use it in production environments before 12 June 2026.** See [conduction.nl/apps](https://conduction.nl/apps) for release planning and what this app does.
+
+OpenTalk Integration for Nextcloud
 
 Integrate OpenTalk video conferencing with your Nextcloud instance.
 
