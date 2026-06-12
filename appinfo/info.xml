@@ -4,7 +4,7 @@
     <id>opentalk</id>
     <name>OpenTalk</name>
     <summary>OpenTalk video conferencing integration for Nextcloud</summary>
-    <description><![CDATA[> ⚠️ **Active development — not for production use yet.** This app is under active development. Although it may carry a stable release status, **please do not use it in production environments before 12 June 2026.** See [conduction.nl/apps](https://conduction.nl/apps) for release planning and what this app does.
+    <description><![CDATA[> ⚠️ **Active development — not for production use yet.** This app is under active development. Although it may carry a stable release status, **please do not use it in production environments before 17 June 2026.** See [conduction.nl/apps](https://conduction.nl/apps) for release planning and what this app does.
 
 OpenTalk Integration for Nextcloud
 
@@ -19,7 +19,7 @@ This is an ExApp (External Application) - Nextcloud will automatically manage th
 
 **Note:** OpenTalk requires additional services (PostgreSQL, Redis, Keycloak, LiveKit) for full functionality.
     ]]></description>
-    <version>0.1.2</version>
+    <version>0.1.3</version>
     <licence>agpl</licence>
     <author mail="info@conduction.nl" homepage="https://www.conduction.nl/">Conduction</author>
     <category>multimedia</category>
