@@ -1,0 +1,17 @@
+parameters:
+    level: 5
+    # This app is a Python ExApp sidecar wrapper and ships no PHP under lib/
+    # (that directory does not exist). The only PHP we author is the custom
+    # PHPCS sniff, so that is the analysis target. Add `- lib` here the moment
+    # any PHP app code lands in this repo.
+    paths:
+        - phpcs-custom-sniffs
+    excludePaths:
+        - vendor
+    # Supplies OCP/NCU and PHP_CodeSniffer symbols, which their packages do not
+    # expose through Composer autoloading. See analysis-bootstrap.php.
+    bootstrapFiles:
+        - analysis-bootstrap.php
+    scanDirectories:
+        - vendor/nextcloud/ocp
+    reportUnmatchedIgnoredErrors: false
