@@ -13,8 +13,10 @@
  * - Nextcloud/third-party method calls ($variable->method() where $variable !== $this)
  * - Any call we cannot determine is "our code"
  *
- * @author  Conduction
- * @package CustomSniffs
+ * @package   CustomSniffs
+ * @author    Conduction b.v. <info@conduction.nl>
+ * @copyright 2026 Conduction b.v.
+ * @license   https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12 EUPL-1.2
  */
 
 namespace CustomSniffs\Sniffs\Functions;
@@ -259,13 +261,13 @@ class NamedParametersSniff implements Sniff
         for ($i = 0; $i < $phpcsFile->numTokens; $i++) {
             if ($tokens[$i]['code'] === T_NAMESPACE) {
                 $namespace = '';
-                $j         = ($i + 1);
-                while ($j < $phpcsFile->numTokens && $tokens[$j]['code'] !== T_SEMICOLON) {
-                    if ($tokens[$j]['code'] !== T_WHITESPACE) {
-                        $namespace .= $tokens[$j]['content'];
+                $ptr       = ($i + 1);
+                while ($ptr < $phpcsFile->numTokens && $tokens[$ptr]['code'] !== T_SEMICOLON) {
+                    if ($tokens[$ptr]['code'] !== T_WHITESPACE) {
+                        $namespace .= $tokens[$ptr]['content'];
                     }
 
-                    $j++;
+                    $ptr++;
                 }
 
                 // Extract first two segments: OCA\AppName.
@@ -295,9 +297,9 @@ class NamedParametersSniff implements Sniff
     {
         $tokens  = $phpcsFile->getTokens();
         $usePath = '';
-        $j       = ($usePtr + 1);
-        while ($j < $phpcsFile->numTokens) {
-            $code = $tokens[$j]['code'];
+        $ptr     = ($usePtr + 1);
+        while ($ptr < $phpcsFile->numTokens) {
+            $code = $tokens[$ptr]['code'];
             if ($code === T_SEMICOLON || $code === T_OPEN_CURLY_BRACKET) {
                 break;
             }
@@ -308,10 +310,10 @@ class NamedParametersSniff implements Sniff
             }
 
             if ($code !== T_WHITESPACE) {
-                $usePath .= $tokens[$j]['content'];
+                $usePath .= $tokens[$ptr]['content'];
             }
 
-            $j++;
+            $ptr++;
         }
 
         $usePath = trim(string: $usePath);

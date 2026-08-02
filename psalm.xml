@@ -7,9 +7,16 @@
     findUnusedBaselineEntry="true"
     findUnusedCode="true"
     findUnusedVariablesAndParams="true"
+    autoloader="analysis-bootstrap.php"
 >
+    <!--
+        This app is a Python ExApp sidecar wrapper: it ships no PHP under lib/
+        (the directory does not exist). The only PHP we author and maintain is
+        the custom PHPCS sniff below, so that is what static analysis covers.
+        Point this at lib/ as well the moment any PHP app code lands here.
+    -->
     <projectFiles>
-        <directory name="lib" />
+        <directory name="phpcs-custom-sniffs" />
         <ignoreFiles>
             <directory name="vendor" />
         </ignoreFiles>
@@ -92,5 +99,13 @@
     </issueHandlers>
     <extraFiles>
         <directory name="vendor/nextcloud/ocp" />
+        <!--
+            squizlabs/php_codesniffer declares no composer autoload section (it
+            ships its own autoloader), so PHP_CodeSniffer\* is invisible to
+            Psalm unless listed here. Without it the sniff reports a false
+            "UndefinedClass ... Sniff does not exist". This supplies the symbol
+            source rather than suppressing the diagnostic.
+        -->
+        <directory name="vendor/squizlabs/php_codesniffer/src" />
     </extraFiles>
 </psalm>

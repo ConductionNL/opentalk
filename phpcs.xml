@@ -2,7 +2,12 @@
 <ruleset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="PHP_CodeSniffer" xsi:noNamespaceSchemaLocation="phpcs.xsd">
     <description>Coding standard for Nextcloud wrapper apps.</description>
 
-    <file>lib</file>
+    <!--
+        No lib/ directory exists in this repo: it is a Python ExApp sidecar
+        wrapper. The custom sniff below is the only PHP we author, so it is
+        what we sniff. Add <file>lib</file> when PHP app code lands here.
+    -->
+    <file>phpcs-custom-sniffs</file>
 
     <exclude-pattern>*/vendor/*</exclude-pattern>
     <exclude-pattern>*/node_modules/*</exclude-pattern>

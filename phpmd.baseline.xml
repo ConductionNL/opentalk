@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<phpmd-baseline>
+  <violation rule="PHPMD\Rule\Design\WeightedMethodCount" file="phpcs-custom-sniffs/CustomSniffs/Sniffs/Functions/NamedParametersSniff.php"/>
+  <violation rule="PHPMD\Rule\CyclomaticComplexity" file="phpcs-custom-sniffs/CustomSniffs/Sniffs/Functions/NamedParametersSniff.php" method="hasUnnamedArguments"/>
+</phpmd-baseline>
