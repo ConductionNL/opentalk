@@ -1,0 +1,46 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [main, beta, development, feature/**, bugfix/**, hotfix/**]
+  pull_request:
+    types: [opened, reopened]
+    branches: [main, beta, development]
+  workflow_dispatch:
+
+concurrency:
+  group: quality-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+# Permission CEILING for the called quality pipeline. GitHub statically
+# validates the called workflow's declared job permissions against this
+# grant — even for jobs that are disabled — so it must cover the maximum
+# any nested job declares: journeydoc-capture (contents+actions write),
+# update-baseline / features-extract (contents write), and the Quality
+# Report PR comment (issues / pull-requests write).
+permissions:
+  contents: write
+  actions: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  quality:
+    if: github.event_name != 'push' || github.event.created != true
+    uses: ConductionNL/.github/.github/workflows/quality.yml@main
+    with:
+      app-name: opentalk
+      # composer.json pins config.platform.php to 8.3
+      php-version: "8.3"
+      # PHP-only ExApp: no package.json, so all npm-side checks are off
+      # (enable-npm gates the npm legs of security/license; enable-frontend
+      # gates Vue Quality and custom frontend checks).
+      enable-npm: false
+      enable-frontend: false
+      # The SBOM job invokes `composer CycloneDX:make-sbom`, which this repo
+      # does not ship — enable once cyclonedx/cyclonedx-php-composer is added
+      # to require-dev.
+      enable-sbom: false
+      # No openspec/specs and no docs/features.json yet — the features check
+      # would fail on every PR comparing "" against "[]".
+      enable-features-extract: false
