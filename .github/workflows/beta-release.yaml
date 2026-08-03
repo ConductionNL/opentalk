@@ -8,6 +8,8 @@ on:
 jobs:
   release-management:
     runs-on: ubuntu-latest
+    # Observed fleet-wide: n=26 runs, max 0.7 min; bounded loosely at 45 min because a spurious release failure is expensive
+    timeout-minutes: 45
     steps:
 
       - name: Checkout Code
