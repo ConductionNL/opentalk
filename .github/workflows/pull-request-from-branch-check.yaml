@@ -9,6 +9,8 @@ on:
 jobs:
   check-branch:
     runs-on: ubuntu-latest
+    # Observed fleet-wide: n=123 runs, max 0.1 min
+    timeout-minutes: 10
     steps:
       - name: Check branch
         run: |
