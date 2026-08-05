@@ -16,7 +16,7 @@
  * @package   CustomSniffs
  * @author    Conduction b.v. <info@conduction.nl>
  * @copyright 2026 Conduction b.v.
- * @license   https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12 EUPL-1.2
+ * @license   EUPL-1.2 https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12
  */
 
 namespace CustomSniffs\Sniffs\Functions;
