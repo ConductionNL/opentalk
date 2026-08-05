@@ -1,0 +1,9 @@
+# Quality tooling for the Python ExApp wrapper in ex_app/.
+#
+# Pinned exactly, on purpose. A floating linter adds rules on its own schedule
+# and turns CI red with no commit in this repo to explain it; an exact pin makes
+# every verdict change a reviewable diff. Bump deliberately.
+#
+# These are the versions the checks were first measured with (2026-08-05).
+ruff==0.16.1
+mypy==2.3.0

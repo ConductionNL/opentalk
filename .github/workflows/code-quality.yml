@@ -25,6 +25,62 @@ permissions:
   pull-requests: write
 
 jobs:
+  # ── The application itself ────────────────────────────────────────────────
+  # This job did not exist until 2026-08-05. opentalk is a Python ExApp
+  # sidecar: the application is ex_app/lib/main.py — 623 lines, the largest of
+  # the four — and nothing in this repo had ever looked at it. phpcs.xml /
+  # psalm.xml / phpstan.neon are all pointed at phpcs-custom-sniffs/, which is
+  # correct for what they are, and leaves the actual app entirely ungated.
+  #
+  # Measured on 2026-08-05, first run of these checks against this repo:
+  # ruff found 5 lint findings and mypy found 5 type errors. Two were real
+  # defects, not style:
+  #   - F841: _serve_index_html() computed an OIDC authority it never used —
+  #     residue from an earlier sessionStorage approach.
+  #   - union-attr on Popen.stdout: the controller's log thread closed over
+  #     the GLOBAL OPENTALK_PROCESS, which stop_opentalk() sets to None, so a
+  #     stop-then-restart would have raised AttributeError on the log thread.
+  # All fixed in the commit that added this job, so it starts green on a real
+  # scan of the file — not on an empty scope.
+  python-checks:
+    name: ${{ matrix.check.name }}
+    runs-on: ubuntu-latest
+    # Observed locally at well under a minute; bounded so a hung job cannot
+    # sit until the 6h default and be reported as "still running".
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        check:
+          - { name: "Ruff Lint", command: "ruff check ex_app/" }
+          - { name: "Ruff Format", command: "ruff format --check ex_app/" }
+          - { name: "Mypy", command: "mypy ex_app/" }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          # Measured, not a floor: the Dockerfile's final stage is
+          # python:3.11-slim and it copies site-packages into
+          # /usr/local/lib/python3.11. Matches pyproject.toml.
+          python-version: "3.11"
+
+      - name: Install quality tooling
+        # requirements-dev.txt pins ruff and mypy exactly. requirements.txt is
+        # installed too so mypy resolves nc_py_api/httpx for real rather than
+        # falling back to ignore_missing_imports and checking less than it
+        # appears to — that is what surfaced the Popen.stdout bug.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -r requirements.txt
+
+      - name: ${{ matrix.check.name }}
+        run: ${{ matrix.check.command }}
+
+  # ── The shared Conduction quality pipeline ────────────────────────────────
   quality:
     if: github.event_name != 'push' || github.event.created != true
     uses: ConductionNL/.github/.github/workflows/quality.yml@main
@@ -32,9 +88,11 @@ jobs:
       app-name: opentalk
       # composer.json pins config.platform.php to 8.3
       php-version: "8.3"
-      # PHP-only ExApp: no package.json, so all npm-side checks are off
+      # No package.json in this repo, so all npm-side checks are off
       # (enable-npm gates the npm legs of security/license; enable-frontend
-      # gates Vue Quality and custom frontend checks).
+      # gates Vue Quality and custom frontend checks). NB the comment that
+      # used to sit here called this a "PHP-only ExApp" — it is a PYTHON
+      # ExApp; the only PHP in the tree is phpcs-custom-sniffs/.
       enable-npm: false
       enable-frontend: false
       # The SBOM job invokes `composer CycloneDX:make-sbom`, which this repo
@@ -44,3 +102,28 @@ jobs:
       # No openspec/specs and no docs/features.json yet — the features check
       # would fail on every PR comparing "" against "[]".
       enable-features-extract: false
+      # Hydra Gates was never evaluated in CI here, for a boring reason:
+      # `enable-hydra-gates` defaults to false and this file did not pass it.
+      # The job's `if:` is `inputs.enable-hydra-gates && !cancelled()`, so it
+      # was the FIRST term that deleted the job, not the Playwright
+      # dependency.
+      #
+      # Measured before switching it on (--full scan of the whole tree,
+      # 2026-08-05): 29 of 63 gates reported, 0 failures. So this starts green
+      # honestly. The COVERAGE line is the real output here — most of the
+      # suite is PHP/Vue/Nextcloud-shaped and has no subject matter in a
+      # Python sidecar, and the gates say so by name rather than passing
+      # quietly.
+      enable-hydra-gates: true
+      # Deliberately NOT pinned to a tag. A pin is a silent expiry date: the
+      # fleet pinned v1.0.1 across 22 repos, the pin predated the fixes to 16
+      # gates, and every one of those gates was dead for as long as the pin
+      # stood. This repo's gate surface is small and its diffs are tiny, so
+      # tracking main costs little and inherits gate fixes the day they land.
+      hydra-gates-ref: main
+      # Left at its default (false) on purpose. 34 of the 63 gates have no
+      # subject matter in a repo with no lib/, no src/ and no manifest;
+      # demanding full coverage here would fail every PR for a condition no
+      # PR can fix. The coverage block prints either way, which is the part
+      # that matters.
+      # hydra-gates-require-full-coverage: false

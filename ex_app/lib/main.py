@@ -8,7 +8,7 @@ import socket
 import subprocess
 import threading
 import typing
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 import httpx
@@ -21,7 +21,6 @@ from nc_py_api.ex_app import (
     setup_nextcloud_logging,
 )
 from nc_py_api.ex_app.integration_fastapi import AppAPIAuthMiddleware
-
 
 # -- Logging -----------------------------------------------------------------
 logging.basicConfig(
@@ -40,10 +39,7 @@ OPENTALK_PROCESS = None
 
 APP_ID = os.environ.get("APP_ID", "opentalk")
 HARP_ENABLED = bool(os.environ.get("HP_SHARED_KEY"))
-if HARP_ENABLED:
-    PROXY_PREFIX = f"/exapps/{APP_ID}"
-else:
-    PROXY_PREFIX = f"/index.php/apps/app_api/proxy/{APP_ID}"
+PROXY_PREFIX = f"/exapps/{APP_ID}" if HARP_ENABLED else f"/index.php/apps/app_api/proxy/{APP_ID}"
 
 # Keycloak/OIDC configuration
 KEYCLOAK_URL = os.environ.get("KEYCLOAK_URL", "")
@@ -52,9 +48,7 @@ KEYCLOAK_CLIENT_ID = os.environ.get("KEYCLOAK_CLIENT_ID", "opentalk-controller")
 KEYCLOAK_CLIENT_SECRET = os.environ.get("KEYCLOAK_CLIENT_SECRET", "opentalk-secret")
 
 # Keycloak ExApp token API (for server-side auth)
-KEYCLOAK_EXAPP_URL = os.environ.get(
-    "KEYCLOAK_EXAPP_URL", "http://openregister-exapp-keycloak:23002"
-)
+KEYCLOAK_EXAPP_URL = os.environ.get("KEYCLOAK_EXAPP_URL", "http://openregister-exapp-keycloak:23002")
 # AppAPI auth for ExApp-to-ExApp communication
 NEXTCLOUD_URL = os.environ.get("NEXTCLOUD_URL", "http://nextcloud")
 APP_SECRET = os.environ.get("APP_SECRET", "")
@@ -63,9 +57,7 @@ APP_VERSION = os.environ.get("APP_VERSION", "1.0.0")
 
 # -- Local Port Proxy --------------------------------------------------------
 KEYCLOAK_LOCAL_PORT = int(os.environ.get("KEYCLOAK_LOCAL_PORT", "8180"))
-KEYCLOAK_INTERNAL_HOST = os.environ.get(
-    "KEYCLOAK_INTERNAL_HOST", "openregister-exapp-keycloak"
-)
+KEYCLOAK_INTERNAL_HOST = os.environ.get("KEYCLOAK_INTERNAL_HOST", "openregister-exapp-keycloak")
 KEYCLOAK_INTERNAL_PORT = int(os.environ.get("KEYCLOAK_INTERNAL_PORT", "8080"))
 
 
@@ -83,9 +75,7 @@ def _tcp_proxy_thread() -> None:
         client, _ = sock.accept()
         client.setblocking(False)
         try:
-            upstream = socket.create_connection(
-                (KEYCLOAK_INTERNAL_HOST, KEYCLOAK_INTERNAL_PORT), timeout=5
-            )
+            upstream = socket.create_connection((KEYCLOAK_INTERNAL_HOST, KEYCLOAK_INTERNAL_PORT), timeout=5)
             upstream.setblocking(False)
         except OSError:
             client.close()
@@ -95,23 +85,29 @@ def _tcp_proxy_thread() -> None:
 
     while True:
         for key, _ in sel.select(timeout=1):
-            if key.fileobj is srv:
-                _accept(key.fileobj)
+            # selectors types fileobj as `int | HasFileno`; everything we
+            # register here is a real socket. Narrow it for real rather than
+            # asserting it — a raw fd would otherwise reach .recv()/.close()
+            # and raise AttributeError inside the proxy loop.
+            conn = key.fileobj
+            if not isinstance(conn, socket.socket):
+                continue
+
+            if conn is srv:
+                _accept(conn)
             else:
                 data = None
-                try:
-                    data = key.fileobj.recv(65536)
-                except OSError:
-                    pass
+                with suppress(OSError):
+                    data = conn.recv(65536)
                 if data:
                     try:
                         key.data.sendall(data)
                     except OSError:
                         data = None
                 if not data:
-                    sel.unregister(key.fileobj)
+                    sel.unregister(conn)
                     sel.unregister(key.data)
-                    key.fileobj.close()
+                    conn.close()
                     key.data.close()
 
 
@@ -153,19 +149,29 @@ def start_opentalk() -> None:
     if KEYCLOAK_URL:
         LOGGER.info("OIDC configured with Keycloak at %s", KEYCLOAK_URL)
 
-    OPENTALK_PROCESS = subprocess.Popen(
+    proc = subprocess.Popen(
         ["/usr/local/bin/opentalk-controller"],
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
+    OPENTALK_PROCESS = proc
 
-    def log_output():
-        for line in OPENTALK_PROCESS.stdout:
+    # Bind the stream locally rather than reading the global. log_output() runs
+    # on a daemon thread for the life of the process, and stop_opentalk() sets
+    # OPENTALK_PROCESS back to None — so a thread that read the global would
+    # raise AttributeError on None the moment the controller was stopped and
+    # restarted. Popen.stdout is also Optional; mypy surfaced both when type
+    # checking was first turned on for this repo.
+    def log_output() -> None:
+        stream = proc.stdout
+        if stream is None:
+            return
+        for line in stream:
             LOGGER.info("[opentalk] %s", line.decode().strip())
 
     threading.Thread(target=log_output, daemon=True).start()
-    LOGGER.info("OpenTalk controller started with PID: %d", OPENTALK_PROCESS.pid)
+    LOGGER.info("OpenTalk controller started with PID: %d", proc.pid)
 
 
 def stop_opentalk() -> None:
@@ -219,8 +225,16 @@ def rewrite_frontend_paths() -> None:
     index_path = FRONTEND_DIR / "index.html"
     if index_path.is_file():
         content = index_path.read_text()
-        for prefix in ["/assets/", "/fonts.", "/fonts/", "/favicon", "/config.js",
-                        "/manifest.json", "/tflite/", "/locales/"]:
+        for prefix in [
+            "/assets/",
+            "/fonts.",
+            "/fonts/",
+            "/favicon",
+            "/config.js",
+            "/manifest.json",
+            "/tflite/",
+            "/locales/",
+        ]:
             content = content.replace(f'"{prefix}', f'"{PROXY_PREFIX}{prefix}')
             content = content.replace(f"'{prefix}", f"'{PROXY_PREFIX}{prefix}")
             content = content.replace(f"({prefix}", f"({PROXY_PREFIX}{prefix}")
@@ -416,9 +430,7 @@ async def get_auth_token(request: Request):
         # Call the Keycloak ExApp directly (container-to-container).
         # The /api/ routes are excluded from AppAPIAuthMiddleware and use
         # a shared secret for authentication.
-        keycloak_api_secret = os.environ.get(
-            "KEYCLOAK_API_SECRET", "keycloak-exapp-internal-secret"
-        )
+        keycloak_api_secret = os.environ.get("KEYCLOAK_API_SECRET", "keycloak-exapp-internal-secret")
         async with httpx.AsyncClient() as client:
             resp = await client.post(
                 f"{KEYCLOAK_EXAPP_URL}/api/token",
@@ -453,9 +465,7 @@ def get_frontend_config() -> str:
     When server-side auth is available (Keycloak ExApp), the frontend
     is configured to skip OIDC login and use the injected token instead.
     """
-    keycloak_browser_url = os.environ.get(
-        "KEYCLOAK_BROWSER_URL", "http://localhost:8180"
-    )
+    keycloak_browser_url = os.environ.get("KEYCLOAK_BROWSER_URL", "http://localhost:8180")
     oidc_authority = f"{keycloak_browser_url}/realms/{KEYCLOAK_REALM}"
 
     return f"""window.config = {{
@@ -542,7 +552,7 @@ async def proxy(request: Request, path: str):
         except httpx.RequestError as e:
             LOGGER.error("Proxy error: %s", str(e))
             return JSONResponse(
-                {"error": f"Proxy error: {str(e)}"},
+                {"error": f"Proxy error: {e!s}"},
                 status_code=502,
             )
 
@@ -566,17 +576,18 @@ def _serve_index_html() -> Response:
     """Serve index.html with token bootstrap script injected.
 
     Injects a script that fetches a pre-authenticated Keycloak token from
-    the /api/auth/token endpoint and stores it in sessionStorage in the
-    format oidc-client-ts expects. This allows the OpenTalk frontend to
-    skip the OIDC login redirect (which CSP blocks in iframes).
+    the /api/auth/token endpoint and writes it into localStorage under the
+    keys the OpenTalk frontend reads (access_token / refresh_token /
+    id_token / server_time_offset). This allows the frontend to skip the
+    OIDC login redirect, which CSP blocks in iframes.
+
+    The OIDC authority is NOT needed here — it is supplied to the frontend by
+    _build_config_js(), which is what window.config consumes. This function
+    used to compute it too and never use it; ruff F841 surfaced that when
+    linting was first turned on for this repo.
     """
     index_path = FRONTEND_DIR / "index.html"
     html = index_path.read_text()
-
-    keycloak_browser_url = os.environ.get(
-        "KEYCLOAK_BROWSER_URL", "http://localhost:8180"
-    )
-    oidc_authority = f"{keycloak_browser_url}/realms/{KEYCLOAK_REALM}"
 
     # Inject bootstrap script before config.js. Nextcloud's AppAPI proxy
     # auto-adds CSP nonce to all <script> tags, so inline scripts work.
